@@ -115,14 +115,14 @@ func getConfig(filename string) []string {
 }
 
 func stdin(hal *HAL_INTERN) {
-	for alive(hal) {
-		var input float64
+	for hal.alive() {
+		var input string
 		fmt.Scanln(&input)
 		(*hal.stdio.in) <- input
 	}
 }
 func stdout(hal *HAL_INTERN) {
-	for alive(hal) {
+	for hal.alive() {
 		output := <-(*hal.stdio.out)
 		fmt.Println("Ausgabe: ", output)
 	}
@@ -134,7 +134,7 @@ func executeOS(halos *HALOS) {
 		hal := &halos.processors[index]
 		waitGroup.Add(1)
 		hal.waitGroup = &waitGroup
-		executeHAL(hal)
+		go executeHAL(hal)
 	}
 	waitGroup.Wait()
 }
@@ -148,4 +148,5 @@ func main() {
 	cfgContent := getConfig(cfgFile)
 	halos := initOS(cfgContent)
 	executeOS(halos)
+	fmt.Scanln()
 }

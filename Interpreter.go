@@ -41,14 +41,15 @@ func readInstructions(filename string, hal *HAL_INTERN) {
 }
 
 func create_hal_instance() HAL_INTERN {
-	tmp := HAL_INTERN{START: true, accumulator: 0.00, processCounter: 0, register: make([]float64, 64), instructions: make([]Instruction, 200), connections: make([]chan float64, 5), stdio: Std{in: nil, out: nil}, waitGroup: nil}
+	mmu := create_mmu_instance()
+	tmp := HAL_INTERN{START: true, accumulator: 0.00, processCounter: 0, mmu: mmu, instructions: make([]Instruction, 200), connections: make([]chan string, 5), stdio: Std{in: nil, out: nil}, waitGroup: nil}
 	for i, _ := range tmp.connections {
-		tmp.connections[i] = make(chan float64)
+		tmp.connections[i] = make(chan string)
 	}
 	return tmp
 }
 
-func alive(hal *HAL_INTERN) bool {
+func (hal *HAL_INTERN) alive() bool {
 	if strings.EqualFold(hal.instructions[hal.processCounter].command, "STOP") {
 		hal.STOP = true
 		hal.START = false
@@ -64,22 +65,7 @@ func alive(hal *HAL_INTERN) bool {
 	return hal.START && !hal.STOP
 }
 
-func printHAL(hal *HAL_INTERN) {
-	fmt.Println("Processcounter: " + strconv.Itoa(hal.processCounter))
-	fmt.Println("Accumulator: " + fmt.Sprintf("%f", hal.accumulator))
-	fmt.Println("Regsiter: ")
-	for i, item := range hal.register {
-		if item != 0 {
-			fmt.Println("[" + strconv.Itoa(i) + "]:" + fmt.Sprintf("%f", item))
-		}
-	}
-	/*fmt.Println("I/O: ")
-	for i, item := range hal.io {
-		if item != 0 {
-			fmt.Println("[" + strconv.Itoa(i) + "]:" + fmt.Sprintf("%f", item))
-		}
-	}*/
-}
+
 
 func getUserInput(port string) float64 {
 	fmt.Println("Eingabe-Port: " + port)
@@ -88,6 +74,7 @@ func getUserInput(port string) float64 {
 	return input
 }
 func executeCommand(instruction Instruction, hal *HAL_INTERN) {
+	//fmt.Println(instruction.command)
 
 	switch instruction.command {
 	case "STOP":
@@ -130,9 +117,16 @@ func executeCommand(instruction Instruction, hal *HAL_INTERN) {
 		LOADIND(hal, instruction.data_i)
 	case "STOREIND":
 		STOREIND(hal, instruction.data_i)
+	case "DUMPREG":
+		DUMPREG(hal)
+	case "DUMPPROG":
+		DUMPPROG(hal)
 	}
 	hal.processCounter++
 }
+
+
+
 func executeHAL(hal *HAL_INTERN) {
 	defer hal.waitGroup.Done()
 	readInstructions(hal.scFileName, hal)
@@ -146,7 +140,7 @@ func executeHAL(hal *HAL_INTERN) {
 		go stdin(hal)
 	}
 
-	for alive(hal) {
+	for hal.alive() {
 		pc := &(hal.processCounter)
 		executeCommand(hal.instructions[*pc], hal)
 	}

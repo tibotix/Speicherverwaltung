@@ -2,6 +2,8 @@ package main
 
 import (
 	"sync"
+	"fmt"
+	"strconv"
 )
 
 type Instruction struct {
@@ -11,8 +13,8 @@ type Instruction struct {
 	data_s  string
 }
 type Std struct {
-	in  *chan float64
-	out *chan float64
+	in  *chan string
+	out *chan string
 }
 
 type HAL_INTERN struct {
@@ -20,8 +22,8 @@ type HAL_INTERN struct {
 	STOP           bool
 	accumulator    float64
 	processCounter int
-	register       []float64
-	connections    []chan float64
+	mmu            MMU
+	connections    []chan string
 	instructions   []Instruction
 	scFileName     string
 	stdio          Std
@@ -29,18 +31,21 @@ type HAL_INTERN struct {
 }
 
 func OUT(hal *HAL_INTERN, port int) {
-	hal.connections[port] <- hal.accumulator
-	//fmt.Println("Ausgabe-Port: " + strconv.Itoa(port) + "\n" + fmt.Sprintf("%f", hal.io[port]))
+	hal.connections[port] <- fmt.Sprintf("%f", hal.accumulator)
 }
 func IN(hal *HAL_INTERN, port int) {
 	//hal.io[port] = getUserInput(strconv.Itoa(port))
-	hal.accumulator = <-hal.connections[port]
+	f := <-hal.connections[port]
+	s, _ := strconv.ParseFloat(f, 64)
+	hal.accumulator = s
 }
 func STORE(hal *HAL_INTERN, index int) {
-	hal.register[index] = hal.accumulator
+	hal.mmu.write(index, hal.accumulator)
+	//hal.register[hal.mmu.vm_to_pm(index)] = hal.accumulator
 }
 func LOAD(hal *HAL_INTERN, index int) {
-	hal.accumulator = hal.register[index]
+	//hal.accumulator = hal.register[hal.mmu.vm_to_pm(index)]
+	hal.accumulator = hal.mmu.read(index)
 }
 func LOADNUM(hal *HAL_INTERN, number float64) {
 	hal.accumulator = number
@@ -64,32 +69,49 @@ func JUMPNULL(hal *HAL_INTERN, pc int) {
 	}
 }
 func ADD(hal *HAL_INTERN, index int) {
-	hal.accumulator += hal.register[index]
+	//hal.accumulator += hal.register[hal.mmu.vm_to_pm(index)]
+	hal.accumulator += hal.mmu.read(index)
 }
 func ADDNUM(hal *HAL_INTERN, number float64) {
 	hal.accumulator += number
 }
 func SUB(hal *HAL_INTERN, index int) {
-	hal.accumulator -= hal.register[index]
+	//hal.accumulator -= hal.register[hal.mmu.vm_to_pm(index)]
+	hal.accumulator -= hal.mmu.read(index)
 }
 func SUBNUM(hal *HAL_INTERN, number float64) {
 	hal.accumulator -= number
 }
 func MUL(hal *HAL_INTERN, index int) {
-	hal.accumulator *= hal.register[index]
+	//hal.accumulator *= hal.register[hal.mmu.vm_to_pm(index)]
+	hal.accumulator *= hal.mmu.read(index)
 }
 func MULNUM(hal *HAL_INTERN, number float64) {
 	hal.accumulator *= number
 }
 func DIV(hal *HAL_INTERN, index int) {
-	hal.accumulator /= hal.register[index]
+	//hal.accumulator /= hal.register[hal.mmu.vm_to_pm(index)]
+	hal.accumulator /= hal.mmu.read(index)
 }
 func DIVNUM(hal *HAL_INTERN, number float64) {
 	hal.accumulator /= number
 }
 func LOADIND(hal *HAL_INTERN, index int) {
-	hal.accumulator = hal.register[int(hal.register[index])]
+	//hal.accumulator = hal.register[hal.mmu.vm_to_pm(int(hal.register[hal.mmu.vm_to_pm(index)]))]
+	hal.accumulator = hal.mmu.read(int(hal.mmu.read(index)))
 }
 func STOREIND(hal *HAL_INTERN, index int) {
-	hal.register[int(hal.register[index])] = hal.accumulator
+	//hal.register[hal.mmu.vm_to_pm(int(hal.register[hal.mmu.vm_to_pm(index)]))] = hal.accumulator
+	hal.mmu.write(int(hal.mmu.read(index)), hal.accumulator)
+}
+func DUMPREG(hal *HAL_INTERN){
+	for idx, register := range hal.mmu.memory {
+		payload := fmt.Sprintf("%i : %f", idx, register)
+		hal.connections[1] <- payload
+	}
+}
+func DUMPPROG(hal* HAL_INTERN){
+	for _, instruction := range hal.instructions {
+		hal.connections[2] <- instruction.command
+	}
 }
