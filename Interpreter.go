@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func readInstructions(filename string, hal *HAL_INTERN) {
@@ -74,7 +75,6 @@ func getUserInput(port string) float64 {
 	return input
 }
 func executeCommand(instruction Instruction, hal *HAL_INTERN) {
-	//fmt.Println(instruction.command)
 
 	switch instruction.command {
 	case "STOP":
@@ -130,7 +130,7 @@ func executeCommand(instruction Instruction, hal *HAL_INTERN) {
 func executeHAL(hal *HAL_INTERN) {
 	defer hal.waitGroup.Done()
 	readInstructions(hal.scFileName, hal)
-	//startTime := time.Now()
+	startTime := time.Now()
 	DEBUG := true
 
 	if hal.stdio.out != nil {
@@ -147,14 +147,12 @@ func executeHAL(hal *HAL_INTERN) {
 	if DEBUG {
 		fmt.Println(hal.scFileName)
 		fmt.Println(hal.STOP)
-		//fmt.Println(hal.accumulator)
-		//printHAL(hal)
 		fmt.Println("-------")
 	}
+	endTime := time.Now()
+	totalTime := endTime.Sub(startTime)
+	fmt.Println("Elapsed Time: ", totalTime)
 
-	//endTime := time.Now()
-	//totalTime := endTime.Sub(startTime)
-	//fmt.Println("Elapsed Time: ", totalTime)
 }
 
 /*
